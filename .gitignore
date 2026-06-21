@@ -1,0 +1,14 @@
+# Rust / Tauri build artifacts
+src-tauri/target/
+target/
+
+# Tauri generated (regenerate via `cargo tauri icon`)
+src-tauri/gen/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo

@@ -1,0 +1,28 @@
+[package]
+name = "grejem-os-hub"
+version = "1.0.0"
+description = "GREJEM-OS HUB — centralny pulpit ekosystemu GREJEM"
+authors = ["GREJEM INDUSTRIES"]
+license = "MIT"
+edition = "2021"
+rust-version = "1.77"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-autostart = "2"
+url = "2"
+open = "5"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
