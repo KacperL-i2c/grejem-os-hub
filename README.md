@@ -7,8 +7,12 @@ backend w Ruście uruchamia aplikacje natywne i sprawdza reachability usług.
 
 ## Co potrafi
 
-- **Grejem-OS** — otwiera `http://127.0.0.1:8080/` w domyślnej przeglądarce + sonduje TCP (realny status online/offline)
+- **Grejem-OS** — otwiera `http://127.0.0.1:8080/` w domyślnej przeglądarce + sonduje TCP (realny status online/offline), a jeśli serwer jest offline — automatycznie go uruchamia (`ensure_server`)
 - **Simple Deck V2** — uruchamia `grejem-os` bezpośrednio (`Command::new().spawn()` z Rustu — bez protokołu `grejem-os://`, bez modalu)
+- **Home Lab Control** — kafelek-grupa: klik otwiera picker z 4 celami (Proxmox / Portainer / Homepage / Grafana); cele localhost mają live status dot
+- **Dokumentacja GREJEM** — otwiera lokalne wiki (`http://127.0.0.1:8000/` domyślnie, konfigurowalne)
+- **Repozytorium GitHub** + **GREJEM 3D** — otwierają odpowiednie URL w przeglądarce
+- **Ustawienia** — modal z nadpisywaniem URL dla Grejem-OS, Home Lab (4 pola), Docs, GitHub + przełącznik motywu i autostartu
 - **Tray icon** — klik lewym pokaże/ukryje okno; menu: Grejem-OS / Simple Deck V2 / Pokaż okno / autostart / Zakończ
 - **Autostart** z systemem (`--minimized` → startuje ukryte w zasobniku)
 - **Bezramkowe szklane okno** (`decorations: false`, `transparent: true`) z własnym titlebarem (przeciąganie, min, ukryj-do-tray)
@@ -115,17 +119,25 @@ Edytuj `frontend/js/apps.js` i dopisz obiekt do `window.GREJEM_APPS`. Schema:
   description: 'Opis techniczny.',
   icon:        'cpu',                   // https://lucide.dev/icons/
   accent:      '#3CFFB0',               // HEX, kolor hover
-  kind:        'web',                   // 'web' | 'native' | 'placeholder'
-  url:         'http://127.0.0.1:9000/',// kind:'web'
-  // command:  'moja-app',              // kind:'native' (musi być w PATH)
+  kind:        'web',                   // 'web' | 'native' | 'group'
+  // ── kind:'web' ──
+  url:         'http://127.0.0.1:9000/',
+  // command:  'moja-app',              // opcjonalne: serwer do auto-startu gdy URL offline (tylko localhost)
+  // ── kind:'native' ──
+  // command:  'moja-app',              // musi być w PATH
+  // ── kind:'group' ──
+  // children: [                        // lista celów podmenu (każdy kind:'web')
+  //   { id: 'cel1', title: 'Cel 1', icon: 'server', url: 'http://127.0.0.1:9000/' }
+  // ],
   tags:        ['tag1', 'tag2'],
   status:      'auto'                   // 'auto' (sonduj, web) | 'online' | 'offline' | 'unknown' | 'disabled'
 }
 ```
 
-- `kind:'web'` → backend woła `open::that(url)` (domyślna przeglądarka)
+- `kind:'web'` → backend woła `open::that(url)` (domyślna przeglądarka); jeśli URL to localhost, `command` jest zdefiniowane i status to `auto` — backend uruchamia serwer gdy offline (`ensure_server`)
 - `kind:'native'` → backend woła `Command::new(command).spawn()` (bezpośrednio, bez protokołu)
-- `status:'auto'` → backend robi `TcpStream::connect_timeout(url, 2.5s)` co 60s
+- `kind:'group'` → klik otwiera picker modal z listą `children`; każdy child otwiera swój URL w przeglądarce; localhost children mają live status dot (sonda `TcpStream::connect_timeout`)
+- Wszystkie URL-e (web + group children) można nadpisać w modalu **Ustawienia** (zapis w `localStorage`)
 
 ## Skróty klawiszowe
 

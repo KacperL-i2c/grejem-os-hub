@@ -86,6 +86,36 @@
       </div>
 
       <div class="settings-section">
+        <div class="settings-section-title">Home Lab Control</div>
+        <label class="settings-label" for="setting-homelab-proxmox">Proxmox VE</label>
+        <input class="settings-input" id="setting-homelab-proxmox" type="url"
+               placeholder="https://192.168.1.10:8006/" spellcheck="false">
+        <label class="settings-label" for="setting-homelab-portainer" style="margin-top:10px;">Portainer</label>
+        <input class="settings-input" id="setting-homelab-portainer" type="url"
+               placeholder="http://127.0.0.1:9000/" spellcheck="false">
+        <label class="settings-label" for="setting-homelab-homepage" style="margin-top:10px;">Homepage</label>
+        <input class="settings-input" id="setting-homelab-homepage" type="url"
+               placeholder="http://127.0.0.1:3002/" spellcheck="false">
+        <label class="settings-label" for="setting-homelab-grafana" style="margin-top:10px;">Grafana</label>
+        <input class="settings-input" id="setting-homelab-grafana" type="url"
+               placeholder="http://127.0.0.1:3000/" spellcheck="false">
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Dokumentacja</div>
+        <label class="settings-label" for="setting-docs-url">Adres URL</label>
+        <input class="settings-input" id="setting-docs-url" type="url"
+               placeholder="http://127.0.0.1:8000/" spellcheck="false">
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Repozytorium GitHub</div>
+        <label class="settings-label" for="setting-github-url">Adres URL</label>
+        <input class="settings-input" id="setting-github-url" type="url"
+               placeholder="https://github.com/GrejemIndustries" spellcheck="false">
+      </div>
+
+      <div class="settings-section">
         <div class="settings-section-title">Wygląd</div>
         <label class="settings-check">
           <input type="checkbox" id="setting-theme-light">
@@ -111,6 +141,8 @@
       </div>
     </div>
   </div>
+
+  <div class="modal-overlay" id="picker-overlay" hidden></div>
 
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="js/apps.js"></script>

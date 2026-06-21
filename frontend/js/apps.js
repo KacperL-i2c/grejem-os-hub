@@ -10,14 +10,17 @@
  *   description  string  opis techniczny (1–2 zdania)
  *   icon         string  nazwa ikony Lucide (https://lucide.dev/icons/)
  *   accent       string  kolor akcentu kafelka (HEX) — pojawia się na hover
- *   kind         'web' | 'native' | 'placeholder'
- *                  web         -> otwiera url w nowej karcie
- *                  native      -> próbuje protocol:// + fallback do modalu z komendą
- *                  placeholder -> toast "Wkrótce"
+ *   kind         'web' | 'native' | 'group'
+ *                  web    -> otwiera url w domyślnej przeglądarce
+ *                  native -> uruchamia command (Command::new().spawn()) bezpośrednio
+ *                  group  -> otwiera picker z listy children (każdy child to osobny URL)
  *   url          string  (kind:'web')    adres URL do otwarcia
- *   command      string  (kind:'web' opcjonalne) komenda serwera do uruchomienia gdy URL offline (tylko localhost)
- *   command      string  (kind:'native') komenda pokazywana w modalu fallback
- *   protocol     string  (kind:'native', opcjonalny) URL scheme, domyślnie 'grejem-os://launch'
+ *   command      string  (kind:'web', opcjonalne) komenda serwera do uruchomienia gdy URL offline (tylko localhost)
+ *                string  (kind:'native') komenda do uruchomienia (musi być w PATH)
+ *   children     []obj   (kind:'group')  lista celów podmenu; każdy child:
+ *                             { id, title, icon, url }
+ *                             url childa może być nadpisany w Ustawieniach
+ *                             (klucz localStorage: grejem-hub-url-<parentId>-<childId>)
  *   tags         []str   słowa kluczowe do filtrowania wyszukiwarką
  *   status       'auto' (sonduj, tylko web) | 'online' | 'offline' | 'unknown' | 'disabled'
  * ============================================================================ */
@@ -44,7 +47,6 @@ window.GREJEM_APPS = [
     accent: '#2DD4FF',
     kind: 'native',
     command: 'grejem-os',
-    protocol: 'grejem-os://launch',
     tags: ['stream deck', 'hid', 'usb', 'audio', 'hotkey', 'potencjometry', 'led', 'macro', 'stm32'],
     status: 'unknown'
   },
@@ -52,12 +54,18 @@ window.GREJEM_APPS = [
     id: 'home-lab',
     title: 'Home Lab Control',
     subtitle: 'Centrum serwerów domowych',
-    description: 'Nakładka na infrastrukturę Home Lab: status usług, Docker, Proxmox, monitoring zasobów.',
+    description: 'Nakładka na infrastrukturę Home Lab: Proxmox, Portainer, Homepage i Grafana. Kliknij, aby wybrać cel.',
     icon: 'server',
     accent: '#3CFFB0',
-    kind: 'placeholder',
-    tags: ['homelab', 'server', 'docker', 'proxmox', 'infra', 'monitoring', 'vps'],
-    status: 'disabled'
+    kind: 'group',
+    children: [
+      { id: 'proxmox',  title: 'Proxmox VE', icon: 'server',            url: 'https://192.168.1.10:8006/' },
+      { id: 'portainer',title: 'Portainer',  icon: 'box',               url: 'http://127.0.0.1:9000/' },
+      { id: 'homepage', title: 'Homepage',   icon: 'layout-dashboard',  url: 'http://127.0.0.1:3002/' },
+      { id: 'grafana',  title: 'Grafana',    icon: 'activity',          url: 'http://127.0.0.1:3000/' }
+    ],
+    tags: ['homelab', 'server', 'docker', 'proxmox', 'infra', 'monitoring', 'vps', 'portainer', 'grafana', 'homepage'],
+    status: 'unknown'
   },
   {
     id: 'docs',
@@ -66,9 +74,10 @@ window.GREJEM_APPS = [
     description: 'Centralne repozytorium wiedzy: architektura, protokoły HID, schematy, przewodniki instalacji.',
     icon: 'book-open',
     accent: '#FFB13C',
-    kind: 'placeholder',
+    kind: 'web',
+    url: 'http://127.0.0.1:8000/',
     tags: ['docs', 'wiki', 'spec', 'architektura', 'protokol', 'pdf', 'manual'],
-    status: 'disabled'
+    status: 'auto'
   },
   {
     id: 'github',
@@ -77,8 +86,21 @@ window.GREJEM_APPS = [
     description: 'Wszystkie projekty GREJEM INDUSTRIES: firmware, aplikacje desktopowe, panele webowe, instalatory.',
     icon: 'github',
     accent: '#9B5CFF',
-    kind: 'placeholder',
+    kind: 'web',
+    url: 'https://github.com/GrejemIndustries',
     tags: ['github', 'git', 'repo', 'source', 'opensource', 'mirror'],
-    status: 'disabled'
+    status: 'online'
+  },
+  {
+    id: 'grejem-website',
+    title: 'GREJEM 3D',
+    subtitle: 'Strona internetowa',
+    description: 'Oficjalna strona GREJEM 3D — grejem3d.pl.',
+    icon: 'globe',
+    accent: '#2DD4FF',
+    kind: 'web',
+    url: 'https://grejem3d.pl/',
+    tags: ['website', 'strona', 'grejem3d', 'www', '3d'],
+    status: 'online'
   }
 ];

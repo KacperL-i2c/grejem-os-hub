@@ -38,6 +38,7 @@
   function tileLaunchLabel(kind) {
     if (kind === 'web') return 'Otwórz';
     if (kind === 'native') return 'Uruchom';
+    if (kind === 'group') return 'Wybierz';
     return '';
   }
 
@@ -68,6 +69,10 @@
   function headIndicator(app) {
     if (app.kind === 'placeholder') return '<span class="tile-badge soon">Wkrótce</span>';
     if (app.kind === 'native') return '<span class="tile-badge native">Desktop</span>';
+    if (app.kind === 'group') {
+      var n = (app.children || []).length;
+      return '<span class="tile-badge group">' + n + ' ' + plural(n, 'cel', 'cele', 'celów') + '</span>';
+    }
     var id = escapeHtml(app.id);
     var state = effectiveStatus(app);
     return '<span class="tile-status"><span class="' + dotClassFor(state) + '" data-status="' + id + '"></span>' +
@@ -86,7 +91,7 @@
     el.tabIndex = 0;
 
     var launchHtml = '';
-    if (app.kind === 'web' || app.kind === 'native') {
+    if (app.kind === 'web' || app.kind === 'native' || app.kind === 'group') {
       launchHtml = '<span class="tile-launch">' + tileLaunchLabel(app.kind) +
                    '<i data-lucide="arrow-right"></i></span>';
     }
@@ -153,6 +158,7 @@
   function launch(app) {
     if (app.kind === 'web') openWeb(app);
     else if (app.kind === 'native') launchNative(app);
+    else if (app.kind === 'group') openGroupPicker(app);
     else toast('„' + app.title + '” pojawi się wkrótce w ekosystemie GREJEM.', 'warn', 'clock');
   }
 
@@ -273,6 +279,26 @@
     return /^https?:\/\/(127\.0\.0\.1|localhost|\[?::1\]?)([:\/]|$)/i.test(url || '');
   }
 
+  /* ----------  Group child URL persistence  ---------- */
+  function getStoredChildUrl(parentId, childId) {
+    try { return localStorage.getItem('grejem-hub-childurl-' + parentId + '-' + childId); }
+    catch (e) { return null; }
+  }
+  function setStoredChildUrl(parentId, childId, url) {
+    try {
+      if (url) localStorage.setItem('grejem-hub-childurl-' + parentId + '-' + childId, url);
+      else localStorage.removeItem('grejem-hub-childurl-' + parentId + '-' + childId);
+    } catch (e) {}
+  }
+  function effectiveChildUrl(parentId, child) {
+    return getStoredChildUrl(parentId, child.id) || child.url;
+  }
+  function normalizeUrlInput(v) {
+    v = (v || '').trim();
+    if (v && !/^https?:\/\//i.test(v)) v = 'http://' + v;
+    return v;
+  }
+
   /* ----------  Theme  ---------- */
   function getStoredTheme() {
     try { return localStorage.getItem('grejem-hub-theme'); } catch (e) { return null; }
@@ -358,6 +384,10 @@
 
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
+      if (pickerOverlay && !pickerOverlay.hidden) {
+        closePicker();
+        return;
+      }
       if (settingsOverlay && !settingsOverlay.hidden) {
         closeSettings();
         return;
@@ -396,6 +426,12 @@
   var settingThemeLight = $('#setting-theme-light');
   var settingAutostart = $('#setting-autostart');
   var settingAppVersion = $('#setting-app-version');
+  var settingDocsUrl = $('#setting-docs-url');
+  var settingGithubUrl = $('#setting-github-url');
+  var settingHomelabProxmox = $('#setting-homelab-proxmox');
+  var settingHomelabPortainer = $('#setting-homelab-portainer');
+  var settingHomelabHomepage = $('#setting-homelab-homepage');
+  var settingHomelabGrafana = $('#setting-homelab-grafana');
 
   function openSettings() {
     settingGrejemUrl.value = getStoredUrl('grejem-os') || 'http://127.0.0.1:8080/';
@@ -403,6 +439,12 @@
     var curTheme = document.documentElement.getAttribute('data-theme') || 'dark';
     settingThemeLight.checked = (curTheme === 'light');
     settingAppVersion.textContent = '…';
+    if (settingDocsUrl) settingDocsUrl.value = getStoredUrl('docs') || 'http://127.0.0.1:8000/';
+    if (settingGithubUrl) settingGithubUrl.value = getStoredUrl('github') || 'https://github.com/GrejemIndustries';
+    if (settingHomelabProxmox) settingHomelabProxmox.value = getStoredChildUrl('home-lab', 'proxmox') || 'https://192.168.1.10:8006/';
+    if (settingHomelabPortainer) settingHomelabPortainer.value = getStoredChildUrl('home-lab', 'portainer') || 'http://127.0.0.1:9000/';
+    if (settingHomelabHomepage) settingHomelabHomepage.value = getStoredChildUrl('home-lab', 'homepage') || 'http://127.0.0.1:3002/';
+    if (settingHomelabGrafana) settingHomelabGrafana.value = getStoredChildUrl('home-lab', 'grafana') || 'http://127.0.0.1:3000/';
     invoke('is_autostart_enabled')
       .then(function (on) { settingAutostart.checked = !!on; })
       .catch(function () { settingAutostart.checked = false; });
@@ -414,16 +456,27 @@
   }
   function closeSettings() { if (settingsOverlay) settingsOverlay.hidden = true; }
 
+  function saveField(getter, defaultVal, store) {
+    var v = normalizeUrlInput(getter.value);
+    if (v && v !== defaultVal) store(v);
+    else store(null);
+    if (getter) getter.value = v || defaultVal;
+  }
+
   function saveSettings() {
-    var url = (settingGrejemUrl.value || '').trim();
-    if (url && !/^https?:\/\//i.test(url)) {
-      url = 'http://' + url;
-      settingGrejemUrl.value = url;
-    }
+    var url = normalizeUrlInput(settingGrejemUrl.value);
+    settingGrejemUrl.value = url || 'http://127.0.0.1:8080/';
     if (url && url !== 'http://127.0.0.1:8080/') setStoredUrl('grejem-os', url);
     else setStoredUrl('grejem-os', null);
 
     setStoredAutolaunch('grejem-os', settingGrejemAutolaunch.checked);
+
+    if (settingDocsUrl) saveField(settingDocsUrl, 'http://127.0.0.1:8000/', function (v) { setStoredUrl('docs', v); });
+    if (settingGithubUrl) saveField(settingGithubUrl, 'https://github.com/GrejemIndustries', function (v) { setStoredUrl('github', v); });
+    if (settingHomelabProxmox) saveField(settingHomelabProxmox, 'https://192.168.1.10:8006/', function (v) { setStoredChildUrl('home-lab', 'proxmox', v); });
+    if (settingHomelabPortainer) saveField(settingHomelabPortainer, 'http://127.0.0.1:9000/', function (v) { setStoredChildUrl('home-lab', 'portainer', v); });
+    if (settingHomelabHomepage) saveField(settingHomelabHomepage, 'http://127.0.0.1:3002/', function (v) { setStoredChildUrl('home-lab', 'homepage', v); });
+    if (settingHomelabGrafana) saveField(settingHomelabGrafana, 'http://127.0.0.1:3000/', function (v) { setStoredChildUrl('home-lab', 'grafana', v); });
 
     var wantLight = settingThemeLight.checked;
     applyTheme(wantLight ? 'light' : 'dark');
@@ -445,6 +498,99 @@
   if (settingsOverlay) {
     settingsOverlay.addEventListener('click', function (e) {
       if (e.target === settingsOverlay) closeSettings();
+    });
+  }
+
+  /* ----------  Group picker modal  ---------- */
+  var pickerOverlay = $('#picker-overlay');
+  var CHILD_STATUS = {};
+
+  function setChildStatus(parentId, childId, state) {
+    var cid = parentId + '/' + childId;
+    CHILD_STATUS[cid] = state;
+    if (!pickerOverlay) return;
+    var dot = pickerOverlay.querySelector('[data-child-status="' + cssEsc(cid) + '"]');
+    if (dot) {
+      dot.classList.remove('online', 'offline');
+      if (state === 'online') dot.classList.add('online');
+      else if (state === 'offline') dot.classList.add('offline');
+    }
+  }
+
+  function cssEsc(s) {
+    return String(s).replace(/"/g, '\\"');
+  }
+
+  function openGroupPicker(app) {
+    if (!pickerOverlay) {
+      toast('Picker niedostępny.', 'error', 'alert-triangle');
+      return;
+    }
+    var children = app.children || [];
+    if (children.length === 0) {
+      toast('Brak celów w grupie „' + app.title + '”.', 'warn', 'info');
+      return;
+    }
+
+    var html = '<div class="modal" role="dialog" aria-labelledby="picker-title" aria-modal="true">' +
+      '<button class="modal-close" id="picker-close" type="button" aria-label="Zamknij">' +
+        '<i data-lucide="x"></i></button>' +
+      '<h2 id="picker-title">' + escapeHtml(app.title) + '</h2>' +
+      '<p class="modal-desc">Wybierz cel do otwarcia.</p>' +
+      '<div class="picker-list">';
+
+    children.forEach(function (ch) {
+      var url = effectiveChildUrl(app.id, ch);
+      var local = isLocalhostUrl(url);
+      var cid = app.id + '/' + ch.id;
+      var state = local ? (CHILD_STATUS[cid] || 'loading') : 'online';
+      var statusHtml = local
+        ? '<span class="' + dotClassFor(state) + '" data-child-status="' + escapeHtml(cid) + '"></span>'
+        : '<i data-lucide="arrow-up-right" class="picker-arrow"></i>';
+      html +=
+        '<button class="picker-item" type="button" data-url="' + escapeHtml(url) + '">' +
+          '<span class="picker-icon"><i data-lucide="' + escapeHtml(ch.icon) + '"></i></span>' +
+          '<span class="picker-body">' +
+            '<span class="picker-title-row">' + escapeHtml(ch.title) + '</span>' +
+            '<span class="picker-url">' + escapeHtml(url) + '</span>' +
+          '</span>' +
+          '<span class="picker-status">' + statusHtml + '</span>' +
+        '</button>';
+    });
+
+    html += '</div></div>';
+    pickerOverlay.innerHTML = html;
+    pickerOverlay.hidden = false;
+    refreshIcons();
+
+    var closeBtn = $('#picker-close', pickerOverlay);
+    if (closeBtn) closeBtn.addEventListener('click', closePicker);
+    $$('.picker-item', pickerOverlay).forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var url = btn.getAttribute('data-url');
+        closePicker();
+        openUrl(url);
+      });
+    });
+
+    children.forEach(function (ch) {
+      var url = effectiveChildUrl(app.id, ch);
+      if (!isLocalhostUrl(url) || !isTauri()) return;
+      invoke('probe_url', { url: url })
+        .then(function (ok) { setChildStatus(app.id, ch.id, ok ? 'online' : 'offline'); })
+        .catch(function () { setChildStatus(app.id, ch.id, 'offline'); });
+    });
+  }
+
+  function closePicker() {
+    if (!pickerOverlay) return;
+    pickerOverlay.hidden = true;
+    pickerOverlay.innerHTML = '';
+  }
+
+  if (pickerOverlay) {
+    pickerOverlay.addEventListener('click', function (e) {
+      if (e.target === pickerOverlay) closePicker();
     });
   }
 
