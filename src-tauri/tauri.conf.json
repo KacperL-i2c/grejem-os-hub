@@ -63,7 +63,7 @@
         "language": "en-US"
       },
       "nsis": {
-        "languages": ["pl-PL"],
+        "languages": ["Polish"],
         "displayLanguageSelector": false
       }
     }
