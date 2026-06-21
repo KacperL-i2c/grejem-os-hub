@@ -42,6 +42,7 @@ fn main() {
             commands::set_autostart,
             commands::minimize_window,
             commands::hide_window,
+            commands::ensure_server,
         ])
         .setup(|app| {
             let grejem = MenuItem::with_id(app, "grejem", "Grejem-OS", true, None::<&str>)?;

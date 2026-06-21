@@ -27,6 +27,9 @@
     </div>
     <div class="topbar-right">
       <div class="clock" id="clock" aria-label="Aktualny czas">--:--:--</div>
+      <button class="icon-btn" id="settings-open" type="button" aria-label="Ustawienia" title="Ustawienia">
+        <i data-lucide="settings"></i>
+      </button>
       <button class="icon-btn" id="theme-toggle" type="button" aria-label="Przełącz motyw">
         <i data-lucide="moon"></i>
       </button>
@@ -61,6 +64,53 @@
   </footer>
 
   <div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
+
+  <div class="modal-overlay" id="settings-overlay" hidden>
+    <div class="modal" role="dialog" aria-labelledby="settings-title" aria-modal="true">
+      <button class="modal-close" id="settings-close" type="button" aria-label="Zamknij">
+        <i data-lucide="x"></i>
+      </button>
+      <h2 id="settings-title">Ustawienia</h2>
+      <p class="modal-desc">Konfiguracja huba i adresów aplikacji.</p>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Grejem-OS (Printfar)</div>
+        <label class="settings-label" for="setting-grejem-url">Adres URL</label>
+        <input class="settings-input" id="setting-grejem-url" type="url"
+               placeholder="http://127.0.0.1:8080/" spellcheck="false">
+        <label class="settings-check">
+          <input type="checkbox" id="setting-grejem-autolaunch" checked>
+          <span>Uruchom serwer lokalnie jeśli offline</span>
+        </label>
+        <p class="modal-hint">Jeśli adresem jest inna maszyna (np. <code>http://192.168.1.50:8080/</code>), auto-start jest pomijany.</p>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Wygląd</div>
+        <label class="settings-check">
+          <input type="checkbox" id="setting-theme-light">
+          <span>Jasny motyw</span>
+        </label>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">System</div>
+        <label class="settings-check">
+          <input type="checkbox" id="setting-autostart">
+          <span>Uruchom GREJEM-OS HUB z systemem</span>
+        </label>
+        <p class="modal-hint">Wersja: <span id="setting-app-version">—</span></p>
+      </div>
+
+      <div class="settings-actions">
+        <button class="btn-ghost" id="settings-cancel" type="button">Anuluj</button>
+        <button class="btn-primary" id="settings-save" type="button">
+          <i data-lucide="check"></i>
+          Zapisz
+        </button>
+      </div>
+    </div>
+  </div>
 
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="js/apps.js"></script>

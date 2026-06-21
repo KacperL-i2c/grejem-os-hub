@@ -156,13 +156,50 @@
     else toast('„' + app.title + '” pojawi się wkrótce w ekosystemie GREJEM.', 'warn', 'clock');
   }
 
-  function openWeb(app) {
+  function openUrl(url) {
     if (isTauri()) {
-      invoke('open_url', { url: app.url })
+      invoke('open_url', { url: url })
         .catch(function (e) { toast('Nie udało się otworzyć URL: ' + e, 'error', 'alert-triangle'); });
     } else {
-      window.open(app.url, '_blank', 'noopener,noreferrer');
+      window.open(url, '_blank', 'noopener,noreferrer');
     }
+  }
+
+  function openWeb(app) {
+    var url = effectiveUrl(app);
+    var canAutolaunch = !!app.command
+                        && isLocalhostUrl(url)
+                        && getStoredAutolaunch(app.id);
+
+    if (!isTauri()) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    if (canAutolaunch) {
+      toast('Sprawdzanie serwera „' + app.title + '”…', 'info', 'loader');
+      invoke('ensure_server', { url: url, command: app.command, args: [] })
+        .then(function (status) {
+          if (status === 'already_running') {
+            openUrl(url);
+          } else if (status === 'launched') {
+            toast('Serwer „' + app.title + '” uruchomiony.', 'success', 'check-circle');
+            openUrl(url);
+            setTimeout(probeAll, 500);
+          } else {
+            toast('Serwer wciąż się uruchamia — otwieram URL.', 'warn', 'loader');
+            openUrl(url);
+            setTimeout(probeAll, 3000);
+          }
+        })
+        .catch(function (e) {
+          toast('Nie udało się uruchomić serwera: ' + e, 'error', 'alert-triangle');
+          openUrl(url);
+        });
+      return;
+    }
+
+    openUrl(url);
   }
 
   function launchNative(app) {
@@ -190,14 +227,15 @@
 
   function probe(app) {
     if (app.kind !== 'web' || app.status !== 'auto') return Promise.resolve();
+    var url = effectiveUrl(app);
     if (isTauri()) {
-      return invoke('probe_url', { url: app.url })
+      return invoke('probe_url', { url: url })
         .then(function (ok) { setStatus(app.id, ok ? 'online' : 'offline'); })
         .catch(function () { setStatus(app.id, 'offline'); });
     }
     var ctrl = new AbortController();
     var t = setTimeout(function () { ctrl.abort(); }, 2500);
-    return fetch(app.url, { mode: 'no-cors', signal: ctrl.signal, cache: 'no-store' })
+    return fetch(url, { mode: 'no-cors', signal: ctrl.signal, cache: 'no-store' })
       .then(function () { setStatus(app.id, 'online'); })
       .catch(function () { setStatus(app.id, 'offline'); })
       .then(function () { clearTimeout(t); });
@@ -207,6 +245,32 @@
     APPS.forEach(function (app) {
       if (app.kind === 'web' && app.status === 'auto') probe(app);
     });
+  }
+
+  /* ----------  Per-app settings persistence  ---------- */
+  function getStoredUrl(id) {
+    try { return localStorage.getItem('grejem-hub-url-' + id); } catch (e) { return null; }
+  }
+  function setStoredUrl(id, url) {
+    try {
+      if (url) localStorage.setItem('grejem-hub-url-' + id, url);
+      else localStorage.removeItem('grejem-hub-url-' + id);
+    } catch (e) {}
+  }
+  function getStoredAutolaunch(id) {
+    try {
+      var v = localStorage.getItem('grejem-hub-autolaunch-' + id);
+      return v === null ? true : v === '1';
+    } catch (e) { return true; }
+  }
+  function setStoredAutolaunch(id, enabled) {
+    try { localStorage.setItem('grejem-hub-autolaunch-' + id, enabled ? '1' : '0'); } catch (e) {}
+  }
+  function effectiveUrl(app) {
+    return getStoredUrl(app.id) || app.url;
+  }
+  function isLocalhostUrl(url) {
+    return /^https?:\/\/(127\.0\.0\.1|localhost|\[?::1\]?)([:\/]|$)/i.test(url || '');
   }
 
   /* ----------  Theme  ---------- */
@@ -294,6 +358,10 @@
 
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
+      if (settingsOverlay && !settingsOverlay.hidden) {
+        closeSettings();
+        return;
+      }
       if (searchInput.value) { searchInput.value = ''; applyFilter(); searchInput.focus(); return; }
     }
     if (e.key === '/' && document.activeElement !== searchInput && !e.ctrlKey && !e.metaKey) {
@@ -316,6 +384,69 @@
       else if (e.key === 'End') { e.preventDefault(); moveTile(9999); }
     }
   });
+
+  /* ----------  Settings modal  ---------- */
+  var settingsOverlay = $('#settings-overlay');
+  var settingsOpen = $('#settings-open');
+  var settingsClose = $('#settings-close');
+  var settingsCancel = $('#settings-cancel');
+  var settingsSave = $('#settings-save');
+  var settingGrejemUrl = $('#setting-grejem-url');
+  var settingGrejemAutolaunch = $('#setting-grejem-autolaunch');
+  var settingThemeLight = $('#setting-theme-light');
+  var settingAutostart = $('#setting-autostart');
+  var settingAppVersion = $('#setting-app-version');
+
+  function openSettings() {
+    settingGrejemUrl.value = getStoredUrl('grejem-os') || 'http://127.0.0.1:8080/';
+    settingGrejemAutolaunch.checked = getStoredAutolaunch('grejem-os');
+    var curTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+    settingThemeLight.checked = (curTheme === 'light');
+    settingAppVersion.textContent = '…';
+    invoke('is_autostart_enabled')
+      .then(function (on) { settingAutostart.checked = !!on; })
+      .catch(function () { settingAutostart.checked = false; });
+    invoke('app_version')
+      .then(function (v) { settingAppVersion.textContent = v; })
+      .catch(function () { settingAppVersion.textContent = '—'; });
+    refreshIcons();
+    settingsOverlay.hidden = false;
+  }
+  function closeSettings() { if (settingsOverlay) settingsOverlay.hidden = true; }
+
+  function saveSettings() {
+    var url = (settingGrejemUrl.value || '').trim();
+    if (url && !/^https?:\/\//i.test(url)) {
+      url = 'http://' + url;
+      settingGrejemUrl.value = url;
+    }
+    if (url && url !== 'http://127.0.0.1:8080/') setStoredUrl('grejem-os', url);
+    else setStoredUrl('grejem-os', null);
+
+    setStoredAutolaunch('grejem-os', settingGrejemAutolaunch.checked);
+
+    var wantLight = settingThemeLight.checked;
+    applyTheme(wantLight ? 'light' : 'dark');
+    setStoredTheme(wantLight ? 'light' : 'dark');
+
+    invoke('set_autostart', { enabled: settingAutostart.checked })
+      .catch(function (e) { toast('Autostart: ' + e, 'error', 'alert-triangle'); });
+
+    closeSettings();
+    toast('Ustawienia zapisane.', 'success', 'check');
+    render();
+    setTimeout(probeAll, 200);
+  }
+
+  if (settingsOpen) settingsOpen.addEventListener('click', openSettings);
+  if (settingsClose) settingsClose.addEventListener('click', closeSettings);
+  if (settingsCancel) settingsCancel.addEventListener('click', closeSettings);
+  if (settingsSave) settingsSave.addEventListener('click', saveSettings);
+  if (settingsOverlay) {
+    settingsOverlay.addEventListener('click', function (e) {
+      if (e.target === settingsOverlay) closeSettings();
+    });
+  }
 
   /* ----------  Init  ---------- */
   function init() {

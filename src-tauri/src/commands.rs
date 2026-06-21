@@ -86,3 +86,36 @@ pub fn hide_window(app: tauri::AppHandle) {
         let _ = window.hide();
     }
 }
+
+/// Outcome of `ensure_server`.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EnsureStatus {
+    /// URL was already reachable, no action taken.
+    AlreadyRunning,
+    /// Server binary spawned and URL came up within the timeout.
+    Launched,
+    /// Server binary spawned but URL did not come up within the timeout.
+    LaunchedTimeout,
+}
+
+/// If `url` is unreachable, spawn `command args...`, then poll `url` for up to ~15s.
+/// Returns the resulting status. Used by the frontend before opening the URL in a browser.
+#[tauri::command]
+pub async fn ensure_server(
+    url: String,
+    command: String,
+    args: Vec<String>,
+) -> Result<EnsureStatus, String> {
+    if probe_url_inner(url.clone()) {
+        return Ok(EnsureStatus::AlreadyRunning);
+    }
+    launch_app_inner(command, args)?;
+    for _ in 0..7 {
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        if probe_url_inner(url.clone()) {
+            return Ok(EnsureStatus::Launched);
+        }
+    }
+    Ok(EnsureStatus::LaunchedTimeout)
+}

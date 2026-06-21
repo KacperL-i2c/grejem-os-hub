@@ -15,6 +15,7 @@
  *                  native      -> próbuje protocol:// + fallback do modalu z komendą
  *                  placeholder -> toast "Wkrótce"
  *   url          string  (kind:'web')    adres URL do otwarcia
+ *   command      string  (kind:'web' opcjonalne) komenda serwera do uruchomienia gdy URL offline (tylko localhost)
  *   command      string  (kind:'native') komenda pokazywana w modalu fallback
  *   protocol     string  (kind:'native', opcjonalny) URL scheme, domyślnie 'grejem-os://launch'
  *   tags         []str   słowa kluczowe do filtrowania wyszukiwarką
@@ -30,6 +31,7 @@ window.GREJEM_APPS = [
     accent: '#a855f7',
     kind: 'web',
     url: 'http://127.0.0.1:8080/',
+    command: 'grejem-os',
     tags: ['drukarki', '3d', 'farm', 'gcode', 'queue', 'bambu', 'elegoo', 'klipper', 'panel'],
     status: 'auto'
   },
